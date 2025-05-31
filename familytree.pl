@@ -1,16 +1,16 @@
 
 loop_entry:-    
     writeln('1-)Ask relation'),
-    writeln('2-)Add/Delete/Update person'),
+    writeln('2-)Add/Update person'),
     writeln('3-)Get information of any person'),
     writeln('4-)print the family tree'),
-    writeln('5-)Control under 18 age marriage'),
+    writeln('5-)Add marriage'),
     writeln('6-)Terminate the program'),
     nl,
     writeln('Please choose an operation!'),
     read(Choose),
     (
-        Choose==1->show_relation(),loop;
+        Choose==1->show_relation(),loop_entry;
         Choose==2->
         writeln('1-)Add person'),
         writeln('2-)Update person'),
@@ -21,25 +21,64 @@ loop_entry:-
                 writeln('please type the father name and surname:'),read(Father),
                 writeln('please type the mother name and surname:'),read(Mother),
                 writeln('please type the child name and surname:'),read(Name),
-                writeln('please type the birthdate of the child:'),read(Birth),
-                writeln('please type the death date of the child:'),read(Death),
+                writeln('please type the birthdate of the child (YYYY format): '),read(Birth),
+                writeln('please type the death date of the child (YYYY format) :'),read(Death),
                 writeln('please type the child person gender:'),read(Gender),
                 add_person(Father,Mother,Name,Birth,Death,Gender),
-                loop_entry.
+                loop_entry
             ;
             Choose1==2->
-                writeln('Update Birth Date:'),read(UpdateBirth)
-                writeln('Update Death Date'),read(UpdateDeath),
-                update_person(UpdateBirth,UpdateDeath),
-                loop_entry.
+                writeln('1. Update the birth year of someone.'),
+                writeln('2. Update the death year of someone.'),                          
+                writeln('0. Cancel.'),
+                read(Choose2),
+                (
+                    Choose2==1->
+                        writeln('Enter the name of person that you want to update: '),read(Name),
+                        writeln('Enter the new birth year: '),read(NewBirthYear),
+                        update_birth(Name,NewBirthYear),
+                        loop_entry
+                    ;
+
+                    Choose2==2->
+                        writeln('Enter the name of person that you want to update: '),read(Name),
+                        writeln('Enter the new death year: '),read(NewDeathYear),
+                        update_death(Name,NewDeathYear),
+                        loop_entry
+                    ;
+
+                    Choose2==0->
+                        writeln('Cancelled.'),loop_entry
+                    ;
+
+                    writeln('Invalid choice! Please enter 0, 1 or 2.'),
+                    loop_entry
+                )
+            ;
+            writeln('Invalid choice! Please enter 1 or 2.'),loop_entry
+
         );
+
         Choose==3->
             writeln('please type the name and surname:'),read(Name),
             get_information(Name),
+            loop_entry
+        ;
             
         Choose==4->
+            print_tree,loop_entry;
+
         Choose==5->
-        Choose==6->
-    )
+            writeln('name of the first person :'),read(FirstPerson),
+            writeln('name of the second person :'),read(SecondPerson),
+            add_marriage(FirstPerson,SecondPerson),
+            loop_entry
+        ;
+
+        Choose==6-> 
+            writeln('Program terminated. Goodbye!'), halt
+        ;
+        writeln('Invalid choice! Please enter a number between 1-6.'),loop_entry
+    ).
 
 
