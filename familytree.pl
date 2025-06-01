@@ -1,4 +1,9 @@
-%++ %esma
+:-dynamic person/6.
+
+person(unknown, unknown, 'Ahmet Arslan', 1940, 'none', male).
+person(unknown, unknown, 'Fatma Arslan', 1945, 2015, female).
+person('Ahmet Arslan', 'Fatma Arslan', 'Murat Arslan', 1970, 'none', male).
+person('Murat Arslan', 'Mukaddes Demir', 'Zeynep Arslan', 2000, 'none', female).
 
 loop_entry:-    
     writeln('1-)Ask relation'),
