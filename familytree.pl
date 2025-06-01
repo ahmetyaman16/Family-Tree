@@ -1,3 +1,4 @@
+%++ %esma
 
 loop_entry:-    
     writeln('1-)Ask relation'),
@@ -10,7 +11,7 @@ loop_entry:-
     writeln('Please choose an operation!'),
     read(Choose),
     (
-        Choose==1->show_relation(),loop_entry;
+        Choose==1->show_relation(),loop_entry; %++ %elman
         Choose==2->
         writeln('1-)Add person'),
         writeln('2-)Update person'),
@@ -24,7 +25,7 @@ loop_entry:-
                 writeln('please type the birthdate of the child (YYYY format): '),read(Birth),
                 writeln('please type the death date of the child (YYYY format) :'),read(Death),
                 writeln('please type the child person gender:'),read(Gender),
-                add_person(Father,Mother,Name,Birth,Death,Gender),
+                add_person(Father,Mother,Name,Birth,Death,Gender), %++ %esma
                 loop_entry
             ;
             Choose1==2->
@@ -34,16 +35,16 @@ loop_entry:-
                 read(Choose2),
                 (
                     Choose2==1->
-                        writeln('Enter the name of person that you want to update: '),read(Name),
+                        writeln('Enter the name and surname of person that you want to update: '),read(Name),
                         writeln('Enter the new birth year: '),read(NewBirthYear),
-                        update_birth(Name,NewBirthYear),
+                        update_birth(Name,NewBirthYear), %++ %elman
                         loop_entry
                     ;
 
                     Choose2==2->
-                        writeln('Enter the name of person that you want to update: '),read(Name),
+                        writeln('Enter the name and surname of person that you want to update: '),read(Name),
                         writeln('Enter the new death year: '),read(NewDeathYear),
-                        update_death(Name,NewDeathYear),
+                        update_death(Name,NewDeathYear), %++ %elman
                         loop_entry
                     ;
 
@@ -61,17 +62,17 @@ loop_entry:-
 
         Choose==3->
             writeln('please type the name and surname:'),read(Name),
-            get_information(Name),
+            get_information(Name), %++ %ahmet
             loop_entry
         ;
             
         Choose==4->
-            print_tree,loop_entry;
+            print_tree,loop_entry; %++ %esma
 
         Choose==5->
             writeln('name of the first person :'),read(FirstPerson),
             writeln('name of the second person :'),read(SecondPerson),
-            add_marriage(FirstPerson,SecondPerson),
+            add_marriage(FirstPerson,SecondPerson), %++ %ahmet
             loop_entry
         ;
 
