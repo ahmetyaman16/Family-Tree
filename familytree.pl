@@ -1,9 +1,10 @@
 :-dynamic person/6.
-
+:-dynamic married/2.
+current(2025).
 person(unknown, unknown, 'Ahmet Arslan', 1940, 'none', male).
 person(unknown, unknown, 'Fatma Arslan', 1945, 2015, female).
-person('Ahmet Arslan', 'Fatma Arslan', 'Murat Arslan', 1970, 'none', male).
-person('Murat Arslan', 'Mukaddes Demir', 'Zeynep Arslan', 2000, 'none', female).
+% person('Ahmet Arslan', 'Fatma Arslan', 'Murat Arslan', 1970, 'none', male).
+% person('Murat Arslan', 'Mukaddes Demir', 'Zeynep Arslan', 2000, 'none', female).
 
 loop_entry:-    
     writeln('1-)Ask relation'),
@@ -86,5 +87,94 @@ loop_entry:-
         ;
         writeln('Invalid choice! Please enter a number between 1-6.'),loop_entry
     ).
+add_person(Father,Mother,Name,Birth,Death,Gender):-
+    person(_,_,Name,_,_,_) ->
+        writeln('This person already exist');
+    % olum-dogum yili kiyaslamasi
+    (Death \= none, Death < Birth) ->
+        writeln('Death year can not be earlier than birth year');
+    check_parents_dates(Father,Mother,Birth),
+    assertz(person(Father,Mother,Name,Birth,Death,Gender)),
+    writeln('person succesfully added.').
+check_parents_dates(Father,Mother,Birth):-
+    (Father \= unknown, person(_, _, Father, FatherBirth, FatherDeath, _) ->
+        (ChildBirth =< FatherBirth + 20 -> 
+            writeln('Error: Father is too young when child was born'), fail; true),
+        (FatherDeath \= none, ChildBirth > FatherDeath ->
+            writeln(' Child born after father died'), fail; true)
+    ; true),
+    (Mother \= unknown, person(_, _, Mother, MotherBirth, MotherDeath, _) ->
+        (ChildBirth =< MotherBirth + 20 -> 
+            writeln(' Mother is too young when child was born'), fail; true),
+        (MotherDeath \= none, ChildBirth > MotherDeath ->
+            writeln(' Child born after mother died'), fail; true)
+    ; true).  
+main :- loop_entry.
+
+% kontrol icin evlilik iliskileri ve leveller eklenecek 
+print_tree :-
+    writeln('Family Members:'),
+    listPeople.
+listPeople :-
+    person(_,_,Name,_,_,_),
+    writeln(Name),
+    fail.
+listPeople.    
+
+% marriage deneme 
+add_marriage(P1,P2) :- 
+    writeln('Name of first peerson: '),
+    read(P1),
+    ensure_person_exists(P1),
+    writeln('Name of second person: ')
+    read(P2),
+    ensure_person_exists(P2),
+    ( 
+        P1=P2 ->
+        writeln('a person can not marry himself/herself '), fail;
+    (married(P1,P2); married(P2,P1)) -> 
+        writeln('They are already married'),fail;
+    forbidden_relation(P1,P2,Relation) ->
+        format('They can not get married because ~w and , ~w have ~w.~n',[P1,P2,Relation]);
+    underage(P1,Age1), Age1 < 18 -> 
+        format('They can not get married bocause ~ not be 18(age: ~w).~n'[P1,Age1]),fail;
+    underage(P2,Age2), Age2 < 18 -> 
+        format('They can not get married bocause ~ not be 18(age: ~w).~n'[P2,Age2]),fail;
+    assertz(married(P1,P2)),
+    assertz(married(P2,P1))
+       ).
+
+ensure_person_exists(Name) :-
+    birthDate(Name, _), !.  
+ensure_person_exists(Name) :-
+    format('~w not exists. Please give information .~n', [Name]),
+    writeln('Birth date (YYYY):'), read(B),
+    writeln(' Death date (none):'), read(D),
+    writeln('Gender (male,female):'), read(G),
+    assertz(birthDate(Name, B)),
+    (D \= none -> assertz(deadDate(Name, D)) ; true),
+    assertz(gender(Name, G)),
+    (G == male -> assertz(male(Name)) ; G == female -> assertz(female(Name)); true).
+
+undergrade(Name,Age) :-
+   birthDate(Name, Y),
+   current(CY),
+   Age is CY-Y.
+
+
+%eklenecek yasak akrabalık iliskileri var
+forbidden_relation(P1, P2, 'babası') :- father(P1, P2).
+forbidden_relation(P1, P2, 'annesi') :- mother(P1, P2).
+forbidden_relation(P1, P2, 'oğlu') :- son(P1, P2).
+forbidden_relation(P1, P2, 'kızı') :- daughter(P1, P2).
+forbidden_relation(P1, P2, 'erkek kardeşi') :- erkekKardes(P1, P2); abi(P1, P2).
+forbidden_relation(P1, P2, 'kız kardeşi') :- kizKardes(P1, P2); abla(P1, P2).
+forbidden_relation(P1, P2, 'amcası') :- uncle(P1, P2).
+forbidden_relation(P1, P2, 'dayısı') :- dayi(P1, P2); dayi1(P1, P2).
+forbidden_relation(P1, P2, 'halası') :- hala(P1, P2).
+forbidden_relation(P1, P2, 'teyzesi') :- teyze(P1, P2).
+forbidden_relation(P1, P2, 'dedesi') :- grandfather(P1, P2).
+forbidden_relation(P1, P2, 'ninesi') :- grandmother(P1, P2).
+
 
 
