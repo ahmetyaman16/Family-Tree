@@ -102,36 +102,71 @@ add_person(Father,Mother,Name,Birth,Death,Gender):-
     writeln('person succesfully added.').
 check_parents_dates(Father,Mother,Birth):-
     (Father \= unknown, person(_, _, Father, FatherBirth, FatherDeath, _) ->
-        (ChildBirth =< FatherBirth + 20 -> 
+        (Birth =< FatherBirth + 18 -> 
             writeln('Error: Father is too young when child was born'), fail; true),
-        (FatherDeath \= none, ChildBirth > FatherDeath ->
+        (FatherDeath \= none, Birth > FatherDeath ->
             writeln(' Child born after father died'), fail; true)
     ; true),
     (Mother \= unknown, person(_, _, Mother, MotherBirth, MotherDeath, _) ->
-        (ChildBirth =< MotherBirth + 20 -> 
+        (Birth =< MotherBirth + 18 -> 
             writeln(' Mother is too young when child was born'), fail; true),
-        (MotherDeath \= none, ChildBirth > MotherDeath ->
+        (MotherDeath \= none, Birth > MotherDeath ->
             writeln(' Child born after mother died'), fail; true)
     ; true).  
+ 
 main :- loop_entry.
 
-% kontrol icin evlilik iliskileri ve leveller eklenecek 
 print_tree :-
-    writeln('Family Members:'),
-    listPeople.
-listPeople :-
-    person(_,_,Name,_,_,_),
-    writeln(Name),
-    fail.
-listPeople.    
+    writeln('--- Family Tree ---'),
+    findall(Name, person(_, _, Name, _, _, _), AllNames),
+    compute_all_levels(AllNames, [], LevelMap),
+    print_by_levels(LevelMap, 0).
+
+compute_all_levels([], Levels, Levels).
+compute_all_levels([Name|Rest], Acc, Final) :-
+    ( member(Name-_, Acc) ->
+        compute_all_levels(Rest, Acc, Final)
+    ;
+        compute_level(Name, Level),
+        compute_all_levels(Rest, [Name-Level|Acc], Final)
+    ).
+
+compute_level(Name, Level) :-
+    person(Father, Mother, Name, _, _, _),
+    find_parent_level(Father, L1),
+    find_parent_level(Mother, L2),
+    Max is max(L1, L2),
+    ( Max == -1 ->
+        ( married(Name, Spouse),
+          compute_level(Spouse, SpouseLevel) ->
+              Level is SpouseLevel
+        ;
+              Level = 0 )
+    ;
+        Level is Max + 1
+    ).
+
+print_by_levels(LevelMap, Gen) :-
+    include(match_level(Gen), LevelMap, CurrentLevel),
+    CurrentLevel \= [],
+    format('--- Level ~w ---~n', [Gen]),
+    maplist(with_birth, CurrentLevel, Pairs),
+    keysort(Pairs, Sorted),
+    pairs_values(Sorted, NamesSorted),
+    print_persons_couples(NamesSorted, []),
+    NextGen is Gen + 1,
+    print_by_levels(LevelMap, NextGen).
+print_by_levels(_, _).
+
+match_level(Target, _Name-Level) :- Level =:= Target.
+
+with_birth(Name-_, Birth-Name) :-
+    person(_, _, Name, Birth, _, _).
+
+    
 
 % marriage deneme 
 add_marriage(P1,P2) :- 
-    writeln('Name of first peerson: '),
-    read(P1),
-    ensure_person_exists(P1),
-    writeln('Name of second person: ')
-    read(P2),
     ensure_person_exists(P2),
     ( 
         P1=P2 ->
@@ -141,44 +176,75 @@ add_marriage(P1,P2) :-
     forbidden_relation(P1,P2,Relation) ->
         format('They can not get married because ~w and , ~w have ~w.~n',[P1,P2,Relation]);
     underage(P1,Age1), Age1 < 18 -> 
-        format('They can not get married bocause ~ not be 18(age: ~w).~n'[P1,Age1]),fail;
+        format('They can not get married because ~w under 18(age: ~w).~n',[P1,Age1]),fail;
     underage(P2,Age2), Age2 < 18 -> 
-        format('They can not get married bocause ~ not be 18(age: ~w).~n'[P2,Age2]),fail;
+        format('They can not get married because ~w under 18(age: ~w).~n',[P2,Age2]),fail;
     assertz(married(P1,P2)),
     assertz(married(P2,P1))
        ).
 
 ensure_person_exists(Name) :-
-    birthDate(Name, _), !.  
+    person(_,_,Name,_,_,_), !.
 ensure_person_exists(Name) :-
-    format('~w not exists. Please give information .~n', [Name]),
-    writeln('Birth date (YYYY):'), read(B),
-    writeln(' Death date (none):'), read(D),
-    writeln('Gender (male,female):'), read(G),
-    assertz(birthDate(Name, B)),
-    (D \= none -> assertz(deadDate(Name, D)) ; true),
-    assertz(gender(Name, G)),
-    (G == male -> assertz(male(Name)) ; G == female -> assertz(female(Name)); true).
-
-undergrade(Name,Age) :-
-   birthDate(Name, Y),
-   current(CY),
-   Age is CY-Y.
+    format('~w does not exist. Please enter details.~n', [Name]),
+    writeln('Father name (or unknown):'), read(F),
+    writeln('Mother name (or unknown):'), read(M),
+    writeln('Birth year (YYYY):'),           read(B),
+    writeln('Death year (YYYY or none):'),   read(D),
+    writeln('Gender (male/female):'),        read(G),
+    assertz(person(F, M, Name, B, D, G)).
 
 
-%eklenecek yasak akrabalık iliskileri var
-forbidden_relation(P1, P2, 'babası') :- father(P1, P2).
-forbidden_relation(P1, P2, 'annesi') :- mother(P1, P2).
-forbidden_relation(P1, P2, 'oğlu') :- son(P1, P2).
-forbidden_relation(P1, P2, 'kızı') :- daughter(P1, P2).
-forbidden_relation(P1, P2, 'erkek kardeşi') :- erkekKardes(P1, P2); abi(P1, P2).
-forbidden_relation(P1, P2, 'kız kardeşi') :- kizKardes(P1, P2); abla(P1, P2).
-forbidden_relation(P1, P2, 'amcası') :- uncle(P1, P2).
-forbidden_relation(P1, P2, 'dayısı') :- dayi(P1, P2); dayi1(P1, P2).
-forbidden_relation(P1, P2, 'halası') :- hala(P1, P2).
-forbidden_relation(P1, P2, 'teyzesi') :- teyze(P1, P2).
-forbidden_relation(P1, P2, 'dedesi') :- grandfather(P1, P2).
-forbidden_relation(P1, P2, 'ninesi') :- grandmother(P1, P2).
+underage(Name, Age) :-
+    person(_,_,Name, Birth, Death, _),
+    current(CY),
+    ( Death == none -> Age is CY - Birth ; Age is Death - Birth ).
+
+
+forbidden_marriage_relation(P1, P2) :-
+    (is_parent_child(P1, P2) ; is_parent_child(P2, P1)).
+
+forbidden_marriage_relation(P1, P2) :-
+    are_siblings(P1, P2).
+
+forbidden_marriage_relation(P1, P2) :-
+    (is_uncle_aunt(P1, P2) ; is_uncle_aunt(P2, P1)).
+
+forbidden_marriage_relation(P1, P2) :-
+    (is_grandparent(P1, P2) ; is_grandparent(P2, P1)).
+
+% Relationship checking predicates
+is_parent_child(Parent, Child) :-
+    person(Parent, _, Child, _, _, _).
+is_parent_child(Parent, Child) :-
+    person(_, Parent, Child, _, _, _).
+
+are_siblings(P1, P2) :-
+    person(F, M, P1, _, _, _),
+    person(F, M, P2, _, _, _),
+    P1 \= P2,
+    (F \= unknown ; M \= unknown).
+
+is_uncle_aunt(P1, P2) :-
+    % P1 is uncle/aunt of P2
+    person(F, M, Parent, _, _, _),
+    person(Parent, _, P2, _, _, _),
+    person(F, M, P1, _, _, _),
+    P1 \= Parent.
+is_uncle_aunt(P1, P2) :-
+    % P1 is uncle/aunt of P2 (through mothers side)
+    person(F, M, Parent, _, _, _),
+    person(_, Parent, P2, _, _, _),
+    person(F, M, P1, _, _, _),
+    P1 \= Parent.
+
+is_grandparent(P1, P2) :-
+    person(P1, _, Parent, _, _, _),
+    (person(Parent, _, P2, _, _, _) ; person(_, Parent, P2, _, _, _)).
+
+is_grandparent(P1, P2) :-
+    person(_, P1, Parent, _, _, _),
+    (person(Parent, _, P2, _, _, _) ; person(_, Parent, P2, _, _, _)).
 
 
 get_information(Name):-
