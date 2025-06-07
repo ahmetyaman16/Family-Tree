@@ -205,7 +205,7 @@ add_marriage(P1,P2) :-
         writeln('a person can not marry himself/herself '), fail;
     (married(P1,P2); married(P2,P1)) -> 
         writeln('They are already married'),fail;
-    forbidden_marriage_relation(P1,P2) ->
+    forbidden_marriage_relation(P1,P2,Relation) ->
         format('They can not get married because ~w and , ~w have ~w.~n',[P1,P2,Relation]);
     underage(P1,Age1), Age1 < 18 -> 
         format('They can not get married because ~w under 18(age: ~w).~n',[P1,Age1]),fail;
@@ -233,17 +233,17 @@ underage(Name, Age) :-
     ( Death == none -> Age is CY - Birth ; Age is Death - Birth ).
 
 
-forbidden_marriage_relation(P1, P2) :-
-    (is_parent_child(P1, P2) ; is_parent_child(P2, P1)).
+forbidden_marriage_relation(P1,P2,'parent/child') :-
+    is_parent_child(P1,P2) ; is_parent_child(P2,P1).
 
-forbidden_marriage_relation(P1, P2) :-
-    are_siblings(P1, P2).
+forbidden_marriage_relation(P1,P2,'siblings') :-
+    are_siblings(P1,P2).
 
-forbidden_marriage_relation(P1, P2) :-
-    (is_uncle_aunt(P1, P2) ; is_uncle_aunt(P2, P1)).
+forbidden_marriage_relation(P1,P2,'uncle/aunt & niece/nephew') :-
+    is_uncle_aunt(P1,P2) ; is_uncle_aunt(P2,P1).
 
-forbidden_marriage_relation(P1, P2) :-
-    (is_grandparent(P1, P2) ; is_grandparent(P2, P1)).
+forbidden_marriage_relation(P1,P2,'grandparent/grandchild') :-
+    is_grandparent(P1,P2) ; is_grandparent(P2,P1).
 
 % Relationship checking predicates
 is_parent_child(Parent, Child) :-
@@ -260,23 +260,27 @@ are_siblings(P1, P2) :-
 is_uncle_aunt(P1, P2) :-
     % P1 is uncle/aunt of P2
     person(F, M, Parent, _, _, _),
+    (F \= unknown ; M \= unknown),
     person(Parent, _, P2, _, _, _),
     person(F, M, P1, _, _, _),
     P1 \= Parent.
 is_uncle_aunt(P1, P2) :-
     % P1 is uncle/aunt of P2 (through mothers side)
     person(F, M, Parent, _, _, _),
+    (F \= unknown ; M \= unknown),
     person(_, Parent, P2, _, _, _),
     person(F, M, P1, _, _, _),
     P1 \= Parent.
 
-is_grandparent(P1, P2) :-
-    person(P1, _, Parent, _, _, _),
-    (person(Parent, _, P2, _, _, _) ; person(_, Parent, P2, _, _, _)).
+is_grandparent(GP, GC) :-
+    person(GP, _, Parent, _, _, _),          
+    (   person(Parent, _, GC, _, _, _)       
+    ;   person(_, Parent, GC, _, _, _) ).    
 
-is_grandparent(P1, P2) :-
-    person(_, P1, Parent, _, _, _),
-    (person(Parent, _, P2, _, _, _) ; person(_, Parent, P2, _, _, _)).
+is_grandparent(GP, GC) :-
+    person(_, GP, Parent, _, _, _),          
+    (   person(Parent, _, GC, _, _, _)       
+    ;   person(_, Parent, GC, _, _, _) ).
 
 
 show_relation :-
@@ -384,11 +388,11 @@ indirect_relationship(P1, P2, 'Kuzen') :-
 
 indirect_relationship(P1, P2, 'Kayınvalide') :-
     married(P2, Spouse),
-    person(P1, _, Spouse, _, _, female).
+    person(_, P1, Spouse, _, _, female).
 
 indirect_relationship(P1, P2, 'Kayınpeder') :-
     married(P2, Spouse),
-    person(_, P1, Spouse, _, _, male).
+    person(P1, _, Spouse, _, _, male).
 
 indirect_relationship(P1, P2, 'Gelin') :-
     ( person(P2, _, Child, _, _, _) ; person(_, P2, Child, _, _, _) ),
@@ -400,14 +404,14 @@ indirect_relationship(P1, P2, 'Damat') :-
     married(P1, Child),
     P1 \= P2.
 
-% Sibling-in-law relationships
+% Sibling-in-law relationships SORUN VAR
 indirect_relationship(P1, P2, 'Enişte') :-
     married(P1, Sister),
     person(Father, Mother, Sister, _, _, female),
     person(Father, Mother, P2, _, _, _),
     Sister \= P2.
 
-indirect_relationship(P1, P2, 'Yenge') :-
+indirect_relationship(P1, P2, 'Yenge') :- % SORUN VAR
     married(P1, Brother),
     person(Father, Mother, Brother, _, _, male),
     person(Father, Mother, P2, _, _, _),
@@ -523,10 +527,6 @@ print_level(Name):-
     find_level(Name,Level),
     format("Level = ~w~n",[Level]).
 
-find_level(Name,Level):-
-    person(Father,Mother,Name,_,_,_),
-    find_parent_level(Father,L1),
-    find_parent_level(Mother,L2),
-    (L1 >= L2 -> MaxLevel is L1; MaxLevel is L2),
-    Level is MaxLevel + 1.
+
+find_level(Name, Level) :- compute_level(Name, Level).
 
