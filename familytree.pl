@@ -6,6 +6,7 @@ person(unknown, unknown, 'Fatma Arslan', 1945, 2015, female).
 % person('Ahmet Arslan', 'Fatma Arslan', 'Murat Arslan', 1970, 'none', male).
 % person('Murat Arslan', 'Mukaddes Demir', 'Zeynep Arslan', 2000, 'none', female).
 
+
 loop_entry:-    
     writeln('1-)Ask relation'),
     writeln('2-)Add/Update person'),
@@ -177,4 +178,62 @@ forbidden_relation(P1, P2, 'dedesi') :- grandfather(P1, P2).
 forbidden_relation(P1, P2, 'ninesi') :- grandmother(P1, P2).
 
 
+get_information(Name):-
+    person(_,_,Name,_,Death,_),
+    print_age(Name),
+    print_level(Name),
+    print_num_of_child(Name),
+    (
+        Death=='none'->
+            writeln('Alive')
+        ;
+            writeln('Dead')
+    ).
+    
+
+print_age(Name):-
+    person(_,_,Name,Birth,Death,_),
+    (Death=='none'->
+        current(CurrentYear),
+        Age is CurrentYear - Birth,
+        format("Age: ~w~n", [Age])
+    ;
+        Age is Death - Birth,
+        format("Age: ~w~n", [Age])
+    ).
+
+print_level(Name):-
+    find_level(Name,Level),
+    format("Level = ~w~n",[Level]).
+
+find_level(Name,Level):-
+    person(Father,Mother,Name,_,_,_),
+    find_parent_level(Father,L1),
+    find_parent_level(Mother,L2),
+    (L1 >= L2 -> MaxLevel is L1; MaxLevel is L2),
+    Level is MaxLevel + 1.
+
+find_parent_level(unknown, -1):- !.
+find_parent_level(Name, -1) :-
+    \+ person(_, _, Name, _, _, _),
+    !.
+find_parent_level(Name, Level):-
+    find_level(Name, Level).
+
+print_num_of_child(Name):-
+    person(_,_,Name,_,_,Gender),
+    (
+        Gender=='f'->
+        findall(Child, person(_,Name,Child,_,_,_), ChildrenFromMother),
+        length(ChildrenFromMother,Count),
+        format("Total child: ~w~n",[Count])
+    ;
+        findall(Child, person(Name,_,Child,_,_,_), ChildrenFromFather),
+        length(ChildrenFromFather,Count),
+        format("Total child: ~w~n",[Count])
+    ).
+    
+
+
+ 
 
