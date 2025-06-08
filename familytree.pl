@@ -242,13 +242,10 @@ add_marriage(P1, P2) :-
 ensure_person_exists(Name) :-
     person(_,_,Name,_,_,_), !.
 ensure_person_exists(Name) :-
-    format('~w does not exist. Please enter details.~n', [Name]),
-    writeln('Father name (or unknown):'), read(F),
-    writeln('Mother name (or unknown):'), read(M),
     writeln('Birth year (YYYY):'),           read(B),
     writeln('Death year (YYYY or none):'),   read(D),
     writeln('Gender (male/female):'),        read(G),
-    assertz(person(F, M, Name, B, D, G)).
+    assertz(person(_, _, Name, B, D, G)).
 
 
 underage(Name, Age) :-
