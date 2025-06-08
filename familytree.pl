@@ -214,6 +214,9 @@ add_marriage(P1, P2) :-
     % If not, ask for their details and add them.
     ensure_person_exists(P1),
     ensure_person_exists(P2),
+    is_married_to_someone_else(Person) :-
+    married(Person, Spouse),
+    Spouse \= unknown. % Marriage to 'unknown' doesnt count.
 
     % Step 2: Perform marriage validations.
     % We use the (->;) operator for a clean if-then-else logic.
