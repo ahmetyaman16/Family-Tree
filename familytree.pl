@@ -196,7 +196,7 @@ compute_level(Name, Level, Vis) :-
     MaxP is max(L1,L2),
     Level is MaxP + 1.
 
-% helpers -------------------------------------------------
+% helpers 
 find_parent_level(unknown, -1, _) :- !.
 find_parent_level(Name, -1, _)    :- \+ person(_,_,Name,_,_,_), !.
 find_parent_level(Name, L, Vis)   :- compute_level(Name, L, Vis).
@@ -206,50 +206,62 @@ find_parent_level(unknown,-1) :- !.
 find_parent_level(Name,-1)    :- \+ person(_,_,Name,_,_,_), !.
 find_parent_level(Name,L)     :- find_parent_level(Name,L,[]).
 
-is_married_to_someone_else(Person) :-
-married(Person, Spouse),
-Spouse \= unknown. % Marriage to 'unknown' doesnt count.
-
-% marriage deneme 
-add_marriage(P1, P2) :-
-    % Step 1: Ensure both people exist in the database.
-    % If not, ask for their details and add them.
-    ensure_person_exists(P1),
-    ensure_person_exists(P2),
 
 
-    % Step 2: Perform marriage validations.
-    % We use the (->;) operator for a clean if-then-else logic.
-    (   P1 == P2 ->
-        writeln('Error: A person cannot marry themselves.')
-    ;   (married(P1, P2) ; married(P2, P1)) ->
-        writeln('Error: These two are already married.')
-    ;   is_married_to_someone_else(P1) -> % Check if P1 is married to someone else
-        format('Error: ~w is already married to someone else.', [P1]), nl
-    ;   is_married_to_someone_else(P2) -> % Check if P2 is married to someone else
-        format('Error: ~w is already married to someone else.', [P2]), nl
-    ;   person(_,_,P1,_,_,G1), person(_,_,P2,_,_,G2), G1 == G2 ->
-        writeln('Error: Spouses must be of different genders.')
-    ;   forbidden_marriage_relation(P1, P2, Relation) ->
-        format('INVALID MARRIAGE: The relationship is ~w.', [Relation]), nl
-    ;   (underage(P1, Age1), Age1 < 18) ->
-        format('INVALID MARRIAGE: ~w is under 18 (Age: ~w).', [P1, Age1]), nl
-    ;   (underage(P2, Age2), Age2 < 18) ->
-        format('INVALID MARRIAGE: ~w is under 18 (Age: ~w).', [P2, Age2]), nl
-    ;   % Step 3: If all checks pass, perform the marriage.
-        assertz(married(P1, P2)),
-        assertz(married(P2, P1)),
-        writeln('Marriage successful!'), nl
-    ).
-
-ensure_person_exists(Name) :-
+ensure_person_exists(Name, existing) :-                     % already present
     person(_,_,Name,_,_,_), !.
-ensure_person_exists(Name) :-
-    writeln('Birth year (YYYY):'),           read(B),
-    writeln('Death year (YYYY or none):'),   read(D),
-    writeln('Gender (male/female):'),        read(G),
-    assertz(person(_, _, Name, B, D, G)).
 
+ensure_person_exists(Name, fresh) :-                        % ask then assert
+    writeln('Birth year (YYYY):'),         read(B),
+    writeln('Death year (YYYY or none):'), read(D),
+    writeln('Gender (male/female):'),      read(G),
+    assertz(person(unknown, unknown, Name, B, D, G)).
+
+
+rollback(fresh,  Name) :- retractall(person(_,_,Name,_,_,_)).
+rollback(existing,_).
+
+
+is_married_to_someone_else(Person) :-
+    married(Person, Spouse),
+    Spouse \= unknown.
+
+
+add_marriage(P1, P2) :-
+    ensure_person_exists(P1, Flag1),
+    ensure_person_exists(P2, Flag2),
+
+    (   P1 == P2 ->
+        Msg = 'Error: A person cannot marry themselves.'
+    ;   (underage(P1,A1), A1 < 18) ->
+        format(atom(Msg),
+               'INVALID MARRIAGE: ~w is under 18 (Age: ~w).', [P1,A1])
+    ;   (underage(P2,A2), A2 < 18) ->
+        format(atom(Msg),
+               'INVALID MARRIAGE: ~w is under 18 (Age: ~w).', [P2,A2])
+    ;   (married(P1,P2) ; married(P2,P1)) ->
+        Msg = 'Error: These two are already married.'
+    ;   is_married_to_someone_else(P1) ->
+        format(atom(Msg),
+               'Error: ~w is already married to someone else.', [P1])
+    ;   is_married_to_someone_else(P2) ->
+        format(atom(Msg),
+               'Error: ~w is already married to someone else.', [P2])
+    ;   person(_,_,P1,_,_,G1), person(_,_,P2,_,_,G2), G1 == G2 ->
+        Msg = 'Error: Spouses must be of different genders.'
+    ;   forbidden_marriage_relation(P1,P2,Rel) ->
+        format(atom(Msg),
+               'INVALID MARRIAGE: The relationship is ~w.', [Rel])
+    ;   % ------------ all checks passed -------------
+        assertz(married(P1,P2)),
+        assertz(married(P2,P1)),
+        writeln('Marriage successful!'),        % success → stop, keep facts
+        !
+    ),
+
+    rollback(Flag1,P1),
+    rollback(Flag2,P2),
+    writeln(Msg).
 
 underage(Name, Age) :-
     person(_,_,Name, Birth, Death, _),
