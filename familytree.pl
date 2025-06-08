@@ -93,15 +93,18 @@ loop_entry:-
     ).
 
 
-add_person(Father,Mother,Name,Birth,Death,Gender):-
-    person(_,_,Name,_,_,_) ->
-        writeln('This person already exist');
-    % olum-dogum yili kiyaslamasi
-    (Death \= none, Death < Birth) ->
-        writeln('Death year can not be earlier than birth year');
-    check_parents_dates(Father,Mother,Birth),
-    assertz(person(Father,Mother,Name,Birth,Death,Gender)),
-    writeln('person succesfully added.').
+add_person(Father, Mother, Name, Birth, Death, Gender) :-
+    (   person(_, _, Name, _, _, _)               
+    ->  writeln('This person already exists')
+    ;   Death \= none,
+        Death < Birth                          
+    ->  writeln('Death year cannot be earlier than birth year')
+    ;   \+ check_parents_dates(Father, Mother, Birth)
+    ->  true                                      
+    ;   assertz(person(Father, Mother, Name,
+                       Birth, Death, Gender)),    
+        writeln('Person successfully added.')
+    ).
 
 
 check_parents_dates(Father,Mother,Birth):-
@@ -161,22 +164,28 @@ print_by_levels(_, _).
 match_level(G, _N-L) :- L=:=G.
 add_birth(Name-_, Birth-Name) :- person(_,_,Name,Birth,_,_).
 
+root_person(Name) :-
+    person(F, M, Name, _, _, _),
+    (F == unknown ; \+ person(_,_,F,_,_,_)),
+    (M == unknown ; \+ person(_,_,M,_,_,_)).
 
 % public wrapper (2-arg version kept for existing code)
 compute_level(Name, Level) :- compute_level(Name, Level, []).
 
 % (1) founder couple – both spouses also founders → level 0
 compute_level(Name, 0, _) :-
-    person(unknown, unknown, Name, _, _, _),
-    ( \+ married(Name,_) ;
-      ( married(Name, Sp), person(unknown,unknown,Sp,_,_,_) ) ), !.
+    root_person(Name),
+    (   \+ married(Name, _)
+    ;   married(Name, Sp),
+        root_person(Sp)
+    ), !.
 
 % (2) founder married to someone with known parents → use spouse’s level
 compute_level(Name, Level, Vis) :-
-    person(unknown, unknown, Name, _, _, _),
+    root_person(Name),
     married(Name, Sp),
     \+ memberchk(Name, Vis),
-    \+ person(unknown, unknown, Sp, _, _, _),
+    \+ root_person(Sp),                 
     compute_level(Sp, Level, [Name|Vis]), !.
 
 % (3) normal rule: max(parent levels) + 1
@@ -189,11 +198,13 @@ compute_level(Name, Level, Vis) :-
 
 % helpers -------------------------------------------------
 find_parent_level(unknown, -1, _) :- !.
-find_parent_level(N, L, Vis)     :- compute_level(N, L, Vis).
+find_parent_level(Name, -1, _)    :- \+ person(_,_,Name,_,_,_), !.
+find_parent_level(Name, L, Vis)   :- compute_level(Name, L, Vis).
 
-% 2-arg helper retained for existing calls elsewhere
+% 2-arg wrapper
 find_parent_level(unknown,-1) :- !.
-find_parent_level(N,L)       :- find_parent_level(N,L,[]).
+find_parent_level(Name,-1)    :- \+ person(_,_,Name,_,_,_), !.
+find_parent_level(Name,L)     :- find_parent_level(Name,L,[]).
 
 
 
@@ -529,4 +540,3 @@ print_level(Name):-
 
 
 find_level(Name, Level) :- compute_level(Name, Level).
-
