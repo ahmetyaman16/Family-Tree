@@ -1,12 +1,247 @@
 :- dynamic person/6.
 :- dynamic married/2.
 
-:- discontiguous direct_relationship/3.
 
-person(unknown, unknown, 'Ahmet Arslan', 1940, none, male).
-person(unknown, unknown, 'Fatma Arslan', 1945, 2015, female).
-married('Ahmet Arslan', 'Fatma Arslan').
-married('Fatma Arslan', 'Ahmet Arslan').
+person(unknown, unknown, 'Murat Aslan', 1940, none, m).
+person(unknown, unknown, 'Sedanur Aslan', 1942, 2015, f).
+married('Murat Aslan', 'Sedanur Aslan').
+married('Sedanur Aslan', 'Murat Aslan').
+
+/* 
+ Direct parent/child relationshipshalt.
+ */
+
+direct_parent_child('Anne', Mother, Child) :-
+    person(_, Mother, Child, _, _, _).
+
+direct_parent_child('Baba', Father, Child) :-
+    person(Father, _, Child, _, _, _).
+
+direct_parent_child('Ogul', Son, Parent) :-
+    ( person(Parent, _, Son, _, _, m)
+    ; person(_, Parent, Son, _, _, m)
+    ).
+
+direct_parent_child('Kiz', Daughter, Parent) :-
+    ( person(Parent, _, Daughter, _, _, f)
+    ; person(_, Parent, Daughter, _, _, f)
+    ).
+
+/* 
+ Sibling & nephew - niece relationships
+ */
+
+sibling_relation(Label, P1, P2) :-
+    person(F, M, P1, Birth1, _, Gender1),
+    person(F, M, P2, Birth2, _, _),
+    P1 \= P2,
+    (F \= unknown ; M \= unknown),          % at least one parent known
+    (   Gender1 == m ->
+        ( Birth1 <  Birth2 -> Label = 'Abi'
+        ; Birth1 >= Birth2 -> Label = 'Erkek Kardes'
+        )
+    ;   Gender1 == f ->
+        ( Birth1 <  Birth2 -> Label = 'Abla'
+        ; Birth1 >= Birth2 -> Label = 'Kiz Kardeş'
+        )
+    ).
+
+nephew_niece_relation('Yegen', P1, P2) :-
+    % Sibling of P2 is parent of P1
+    person(F, M, Sibling, _, _, _),
+    person(F, M, P2,      _, _, _),
+    Sibling \= P2,
+    ( person(Sibling, _, P1, _, _, _)
+    ; person(_, Sibling, P1, _, _, _)
+    ).
+
+/* 
+ Spouse relationship
+ */
+
+spouse_relation('Es', P1, P2) :-
+    married(P1, P2).
+
+/* 
+Aunt & Uncle relationships
+ */
+
+uncle_aunt_relation('Amca', P1, P2) :-
+    person(GF, GM, Father, _, _, _),
+    person(Father, _, P2, _, _, _),           % Father of P2
+    person(GF, GM, P1, _, _, m),           % Male sibling of Father
+    P1 \= Father.
+
+uncle_aunt_relation('Hala', P1, P2) :-
+    person(GF, GM, Father, _, _, _),
+    person(Father, _, P2, _, _, _),
+    person(GF, GM, P1, _, _, f),         % Female sibling of Father
+    P1 \= Father.
+
+uncle_aunt_relation('Dayi', P1, P2) :-
+    person(GF, GM, Mother, _, _, _),
+    person(_, Mother, P2, _, _, _),           % Mother of P2
+    person(GF, GM, P1, _, _, m),           % Male sibling of Mother
+    P1 \= Mother.
+
+uncle_aunt_relation('Teyze', P1, P2) :-
+    person(GF, GM, Mother, _, _, _),
+    person(_, Mother, P2, _, _, _),
+    person(GF, GM, P1, _, _, f),         % Female sibling of Mother
+    P1 \= Mother.
+
+/* 
+Cousin relationship
+ */
+
+cousin_relation('Kuzen', P1, P2) :-
+    % Find two parents that are siblings
+    person(GF, GM, Parent1, _, _, _),
+    person(GF, GM, Parent2, _, _, _),
+    Parent1 \= Parent2,
+    % Parent1 is parent of P1
+    ( person(Parent1, _, P1, _, _, _)
+    ; person(_, Parent1, P1, _, _, _) ),
+    % Parent2 is parent of P2
+    ( person(Parent2, _, P2, _, _, _)
+    ; person(_, Parent2, P2, _, _, _) ),
+    % Ensure we didn’t pick a direct sibling pair
+    \+ sibling_relation(_, P1, P2).
+
+/* 
+ Parent-in-law - Child-in-law relationships
+ */
+
+% Parent‑in‑law: P1 is the mother or father of P2’s spouse
+parent_in_law_relation('Kayinvalide', P1, P2) :-
+    married(P2, Child),
+    person(_, P1, Child, _, _, _),           % P1 is mother of Child
+    P1 \= P2.
+
+parent_in_law_relation('Kayinpeder', P1, P2) :-
+    married(P2, Child),
+    person(P1, _, Child, _, _, _),           % P1 is father of Child
+    P1 \= P2.
+
+% child-in-law
+child_in_law_relation('Gelin', P1, P2) :-
+    married(P1, Child),
+    ( person(P2, _, Child, _, _, _)        % P2 is father of Child
+    ; person(_, P2, Child, _, _, _) ),     % or mother of Child
+    person(_, _, P1, _, _, f),        % P1 must be female
+    P1 \= P2.
+
+child_in_law_relation('Damat', P1, P2) :-
+    married(P1, Child),
+    ( person(P2, _, Child, _, _, _)        % P2 is father of Child
+    ; person(_, P2, Child, _, _, _) ),     % or mother of Child
+    person(_, _, P1, _, _, m),          % P1 must be male
+    P1 \= P2.
+
+/* 
+Sibling-in-law relationships
+ */
+
+% husband of someone's sister
+sibling_in_law_relation('Eniste', P1, P2) :-
+    person(F,M,Sis,_,_,_),
+    person(F,M,P2, _,_,_),
+    Sis \= P2,
+    (F \= unknown ; M \= unknown),   % ensure parents are known → real siblings
+    married(P1,Sis),
+    person(_,_,P1, _,_, m).
+
+% wife of someones brother  (requires at least one known parent)
+sibling_in_law_relation('Yenge', P1, P2) :-
+    person(F,M,Bro,_,_, m),
+    person(F,M,P2, _,_,_),
+    Bro \= P2,
+    (F \= unknown ; M \= unknown),          % ensure real sibling link
+    married(P1,Bro),
+    person(_,_,P1, _,_, f).
+
+% wife’s sister
+sibling_in_law_relation('Baldiz', P1, P2) :-
+    married(P2,Wife),
+    person(F,M,Wife, _,_, f),
+    person(F,M,P1,  _,_, f),
+    P1 \= Wife.
+
+% spouse’s brother
+sibling_in_law_relation('Kayinbirader', P1, P2) :-
+    married(P2,Spouse),
+    person(F,M,Spouse, _,_,_),
+    person(F,M,P1,    _,_, m),
+    P1 \= Spouse.
+
+% husbands of sisters
+sibling_in_law_relation('Bacanak', P1, P2) :-
+    person(_,_,P1, _,_, m),
+    person(_,_,P2, _,_, m),
+    married(P1,W1),
+    married(P2,W2),
+    W1 \= W2,
+    person(F,M,W1, _,_, f),
+    person(F,M,W2, _,_, f).
+
+% wives of brothers
+sibling_in_law_relation('Elti', P1, P2) :-
+    person(_,_,P1, _,_, f),
+    person(_,_,P2, _,_, f),
+    married(P1,H1),
+    married(P2,H2),
+    H1 \= H2,
+    person(F,M,H1, _,_, m),
+    person(F,M,H2, _,_, m).
+
+/* 
+   ask_relation(+P1,+P2)
+*/
+ask_relation(P1, P2) :-
+    direct_parent_child(Label, P1, P2), !,
+    writeln(Label).
+
+ask_relation(P1, P2) :-
+    spouse_relation(Label, P1, P2), !,
+    writeln(Label).
+
+ask_relation(P1, P2) :-
+    parent_in_law_relation(Label, P1, P2), !,
+    writeln(Label).
+
+ask_relation(P1, P2) :-
+    child_in_law_relation(Label, P1, P2), !,
+    writeln(Label).
+
+ask_relation(P1, P2) :-
+    sibling_in_law_relation(Label, P1, P2), !,
+    writeln(Label).
+
+ask_relation(P1, P2) :-
+    sibling_relation(Label, P1, P2), !,
+    writeln(Label).
+
+ask_relation(P1, P2) :-
+    uncle_aunt_relation(Label, P1, P2), !,
+    writeln(Label).
+
+ask_relation(P1, P2) :-
+    nephew_niece_relation(Label, P1, P2), !,
+    writeln(Label).
+
+ask_relation(P1, P2) :-
+    cousin_relation(Label, P1, P2), !,
+    writeln(Label).
+
+show_relation :-
+    writeln('please type first person name:'),
+    read(P1),
+    writeln('please type second person name :'),
+    read(P2),
+    (   ask_relation(P1, P2)
+    ->  true
+    ;   writeln('No direct parent/child relationship found between these two individuals.')
+    ).
 main :-
     loop_entry.
 
@@ -72,17 +307,17 @@ loop_entry:-
 
         Choose==3->
             writeln('please type the name and surname:'),read(Name),
-            get_information(Name), %++ %ahmet
+            get_information(Name), %++ 
             loop_entry
         ;
             
         Choose==4->
-            print_tree,loop_entry; %++ %esma
+            print_tree,loop_entry; %++ 
 
         Choose==5->
             writeln('name of the first person :'),read(FirstPerson),
             writeln('name of the second person :'),read(SecondPerson),
-            add_marriage(FirstPerson,SecondPerson), %++ %ahmet
+            add_marriage(FirstPerson,SecondPerson), %++ 
             loop_entry
         ;
 
@@ -143,7 +378,7 @@ print_persons_couples([N|Rest], Seen) :-
     ->  print_persons_couples(Rest, Seen)
     ;   married(N, S), N \= S,
         memberchk(S, Rest)                          % spouse also here
-    ->  format('~w ⇄ ~w~n', [N, S]),                % show as a couple
+    ->  format('~w - ~w~n', [N, S]),                % show as a couple
         print_persons_couples(Rest, [N,S|Seen])
     ;   format('~w~n', [N]),                        % single print
         print_persons_couples(Rest, [N|Seen])
@@ -214,7 +449,7 @@ ensure_person_exists(Name, existing) :-                     % already present
 ensure_person_exists(Name, fresh) :-                        % ask then assert
     writeln('Birth year (YYYY):'),         read(B),
     writeln('Death year (YYYY or none):'), read(D),
-    writeln('Gender (male/female):'),      read(G),
+    writeln('Gender (m/f):'),      read(G),
     assertz(person(unknown, unknown, Name, B, D, G)).
 
 
@@ -322,169 +557,6 @@ is_grandparent(GP, GC) :-
     ;   person(_, Parent, GC, _, _, _) ).
 
 
-show_relation :-
-    writeln('please type first person name:'),
-    read(P1),
-    writeln('please type second person name :'),
-    read(P2),
-    (   find_relationship(P1, P2, Relation) ->
-        format('~w~n', [Relation])
-    ;   writeln('Bu iki kişi arasında bir akrabalık ilişkisi bulunamadı')
-    ).
-
-% Main relationship finding 
-find_relationship(P1, P2, Relation) :-
-    P1 \= P2,
-    (   direct_relationship(P1, P2, Relation)
-    ;   indirect_relationship(P1, P2, Relation)
-    ).
-
-% Parent-child relationships
-% Mother–Child
-direct_relationship(P1, P2, 'Anne') :-
-    person(_, P1, P2, _, _, _).
-
-% Father–Child
-direct_relationship(P1, P2, 'Baba') :-
-    person(P1, _, P2, _, _, _).
-
-% Child–Parent (Oğul)
-direct_relationship(P1, P2, 'Oğul') :-
-    person(P2, _, P1, _, _, male).
-direct_relationship(P1, P2, 'Oğul') :-
-    person(_, P2, P1, _, _, male).    
-
-% Child–Parent (Kız)
-direct_relationship(P1, P2, 'Kız') :-
-    person(_, P2, P1, _, _, female).
-direct_relationship(P1, P2, 'Kız') :-
-    person(P2, _, P1, _, _, female).
-
-% Sibling relationships
-direct_relationship(P1, P2, SiblingType) :-
-    person(Father, Mother, P1, Birth1, _, Gender1),
-    person(Father, Mother, P2, Birth2, _, Gender2),
-    P1 \= P2,
-    Father \= unknown,
-    Mother \= unknown,
-    sibling_type(Gender1, Gender2, Birth1, Birth2, SiblingType).
-
-% Yaşa ve cinsiyete göre kardeş türü
-sibling_type(male,   male,   Birth1, Birth2, 'Abi')            :- Birth1 < Birth2.
-sibling_type(male,   male,   Birth1, Birth2, 'Erkek Kardeş')    :- Birth1 > Birth2.
-sibling_type(female, female, Birth1, Birth2, 'Abla')            :- Birth1 < Birth2.
-sibling_type(female, female, Birth1, Birth2, 'Kız Kardeş')      :- Birth1 > Birth2.
-sibling_type(male,   female, _,      _,      'Erkek Kardeş').          
-sibling_type(female, male,   _,      _,      'Kız Kardeş').    
-
-% Marriage relationships
-direct_relationship(P1, P2, 'Eş') :-
-    married(P1, P2).
-
-% Amca (baba tarafı erkek kardeş)
-indirect_relationship(P1, P2, 'Amca') :-
-    person(GrandFather, GrandMother, Father, _, _, _),
-    person(Father, _, P2, _, _, _),
-    person(GrandFather, GrandMother, P1, _, _, male),
-    P1 \= Father.
-
-% Dayı (anne tarafı erkek kardeş)
-indirect_relationship(P1, P2, 'Dayı') :-
-    person(GrandFather, GrandMother, Mother, _, _, _),
-    person(_, Mother, P2, _, _, _),
-    person(GrandFather, GrandMother, P1, _, _, male),
-    P1 \= Mother.
-
-% Hala (baba tarafı kız kardeş)
-indirect_relationship(P1, P2, 'Hala') :-
-    person(GrandFather, GrandMother, Father, _, _, _),
-    person(Father, _, P2, _, _, _),
-    person(GrandFather, GrandMother, P1, _, _, female),
-    P1 \= Father.
-
-% Teyze (anne tarafı kız kardeş)
-indirect_relationship(P1, P2, 'Teyze') :-
-    person(GrandFather, GrandMother, Mother, _, _, _),
-    person(_, Mother, P2, _, _, _),
-    person(GrandFather, GrandMother, P1, _, _, female),
-    P1 \= Mother.
-
-indirect_relationship(P1, P2, 'Yeğen') :-
-    person(Father, Mother, P2, _, _, _),
-    person(Father, Mother, Sibling, _, _, _),
-    Sibling \= P2,
-    ( person(Sibling, _, P1, _, _, _)
-    ; person(_, Sibling, P1, _, _, _) ).
-
-indirect_relationship(P1, P2, 'Kuzen') :-
-    person(GrandFather, GrandMother, Parent1, _, _, _),
-    person(GrandFather, GrandMother, Parent2, _, _, _),
-    Parent1 \= Parent2,
-    ( person(Parent1, _, P1, _, _, _)
-    ; person(_, Parent1, P1, _, _, _) ),
-    ( person(Parent2, _, P2, _, _, _)
-    ; person(_, Parent2, P2, _, _, _) ).
-
-indirect_relationship(P1, P2, 'Kayınvalide') :-
-    married(P2, Spouse),
-    person(_, P1, Spouse, _, _, female).
-
-indirect_relationship(P1, P2, 'Kayınpeder') :-
-    married(P2, Spouse),
-    person(P1, _, Spouse, _, _, male).
-
-indirect_relationship(P1, P2, 'Gelin') :-
-    ( person(P2, _, Child, _, _, _) ; person(_, P2, Child, _, _, _) ),
-    married(Child, P1),
-    P1 \= P2.
-
-indirect_relationship(P1, P2, 'Damat') :-
-    ( person(P2, _, Child, _, _, _) ; person(_, P2, Child, _, _, _) ),
-    married(P1, Child),
-    P1 \= P2.
-
-% Sibling-in-law relationships SORUN VAR
-indirect_relationship(P1, P2, 'Enişte') :-
-    married(P1, Sister),
-    person(Father, Mother, Sister, _, _, female),
-    person(Father, Mother, P2, _, _, _),
-    Sister \= P2.
-
-indirect_relationship(P1, P2, 'Yenge') :- % SORUN VAR
-    married(P1, Brother),
-    person(Father, Mother, Brother, _, _, male),
-    person(Father, Mother, P2, _, _, _),
-    Brother \= P2.
-
-indirect_relationship(P1, P2, 'Baldız') :-
-    married(P2, Wife),
-    person(Father, Mother, Wife, _, _, female),
-    person(Father, Mother, P1, _, _, female),
-    P1 \= Wife.
-
-indirect_relationship(P1, P2, 'Kayınbirader') :-
-    married(P2, Spouse),
-    person(Father, Mother, Spouse, _, _, _),
-    person(Father, Mother, P1, _, _, male),
-    P1 \= Spouse.
-
-indirect_relationship(P1, P2, 'Bacanak') :-
-    person(_, _, P1, _, _, male),
-    person(_, _, P2, _, _, male),
-    married(P1, Wife1),
-    married(P2, Wife2),
-    person(Father, Mother, Wife1, _, _, female),
-    person(Father, Mother, Wife2, _, _, female),
-    Wife1 \= Wife2.
-
-indirect_relationship(P1, P2, 'Elti') :-
-    person(_, _, P1, _, _, female),
-    person(_, _, P2, _, _, female),
-    married(P1, Husband1),
-    married(P2, Husband2),
-    person(Father, Mother, Husband1, _, _, male),
-    person(Father, Mother, Husband2, _, _, male),
-    Husband1 \= Husband2.
 
 % --- Update birth year ---
 update_birth(Name, NewBirthYear) :-
@@ -492,11 +564,11 @@ update_birth(Name, NewBirthYear) :-
     ( validate_birth_year(Name, NewBirthYear, Death) ->
         retract(person(Father, Mother, Name, OldBirth, Death, Gender)),
         assertz(person(Father, Mother, Name, NewBirthYear, Death, Gender)),
-        format('~w kişisinin doğum yılı ~w olarak güncellendi.~n', [Name, NewBirthYear])
-    ; writeln('Geçersiz doğum yılı! Güncelleme başarısız.')
+        format('Birth year of ~w has been updated to ~w.~n', [Name, NewBirthYear])
+    ; writeln('Invalid birth year! Update failed.')
     ).
 update_birth(Name, _) :-
-    format('~w isimli kişi bulunamadı.~n', [Name]).
+    format('No person found with the name ~w.~n', [Name]).
 
 % --- Update death year ---
 update_death(Name, NewDeathYear) :-
@@ -505,11 +577,11 @@ update_death(Name, NewDeathYear) :-
     ( validate_death_year(Name, Birth, NewDeathYear) ->
         retract(person(Father, Mother, Name, Birth, OldDeath, Gender)),
         assertz(person(Father, Mother, Name, Birth, NewDeathYear, Gender)),
-        format('~w kişisinin ölüm yılı ~w olarak güncellendi.~n', [Name, NewDeathYear])
-    ; writeln('Geçersiz ölüm yılı! Güncelleme başarısız.')
+        format('Death year of ~w has been updated to ~w.~n', [Name, NewDeathYear])
+    ; writeln('Invalid death year! Update failed.')
     ).
 update_death(Name, _) :-
-    format('~w isimli kişi bulunamadı.~n', [Name]).
+    format('No person found with the name ~w.~n', [Name]).
 
 % --- Validations ---
 
@@ -534,11 +606,11 @@ get_information(Name) :-
     format('Age: ~w~n', [Age]),
     find_level(Name, L), format('Level: ~w~n', [L]),
     print_num_of_child(Name),
-    ( Gender == male -> writeln('Gender: m') ; writeln('Gender: f') ),
+    ( Gender == m -> writeln('Gender: m') ; writeln('Gender: f') ),
     ( Death == none -> writeln('Status: Alive')
     ; writeln('Status: Dead') ).
 get_information(Name) :-
-    format('~w isimli kişi bulunamadı.~n', [Name]).
+    format('No person found with the name ~w.~n', [Name]).
 
 
 print_num_of_child(Name) :-
@@ -568,3 +640,4 @@ print_level(Name):-
 
 
 find_level(Name, Level) :- compute_level(Name, Level).
+
