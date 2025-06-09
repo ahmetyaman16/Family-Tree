@@ -227,41 +227,44 @@ is_married_to_someone_else(Person) :-
     Spouse \= unknown.
 
 
+% --- YENİ VE DÜZELTİLMİŞ add_marriage ---
+
+% Bu kural, tüm ön kontrolleri yapar.
 add_marriage(P1, P2) :-
     ensure_person_exists(P1, Flag1),
     ensure_person_exists(P2, Flag2),
 
-    (   P1 == P2 ->
-        Msg = 'Error: A person cannot marry themselves.'
-    ;   (underage(P1,A1), A1 < 18) ->
-        format(atom(Msg),
-               'INVALID MARRIAGE: ~w is under 18 (Age: ~w).', [P1,A1])
-    ;   (underage(P2,A2), A2 < 18) ->
-        format(atom(Msg),
-               'INVALID MARRIAGE: ~w is under 18 (Age: ~w).', [P2,A2])
-    ;   (married(P1,P2) ; married(P2,P1)) ->
-        Msg = 'Error: These two are already married.'
-    ;   is_married_to_someone_else(P1) ->
-        format(atom(Msg),
-               'Error: ~w is already married to someone else.', [P1])
-    ;   is_married_to_someone_else(P2) ->
-        format(atom(Msg),
-               'Error: ~w is already married to someone else.', [P2])
-    ;   person(_,_,P1,_,_,G1), person(_,_,P2,_,_,G2), G1 == G2 ->
-        Msg = 'Error: Spouses must be of different genders.'
-    ;   forbidden_marriage_relation(P1,P2,Rel) ->
-        format(atom(Msg),
-               'INVALID MARRIAGE: The relationship is ~w.', [Rel])
-    ;   % ------------ all checks passed -------------
-        assertz(married(P1,P2)),
-        assertz(married(P2,P1)),
-        writeln('Marriage successful!'),        % success → stop, keep facts
-        !
-    ),
+    % Hata kontrolleri
+    (   ( P1 == P2 ->
+            Msg = 'Error: A person cannot marry themselves.'
+        ;   (underage(P1,A1), A1 < 18) ->
+            format(atom(Msg), 'INVALID MARRIAGE: ~w is under 18 (Age: ~w).', [P1,A1])
+        ;   (underage(P2,A2), A2 < 18) ->
+            format(atom(Msg), 'INVALID MARRIAGE: ~w is under 18 (Age: ~w).', [P2,A2])
+        ;   (married(P1,P2) ; married(P2,P1)) ->
+            Msg = 'Error: These two are already married.'
+        ;   is_married_to_someone_else(P1) ->
+            format(atom(Msg), 'Error: ~w is already married to someone else.', [P1])
+        ;   is_married_to_someone_else(P2) ->
+            format(atom(Msg), 'Error: ~w is already married to someone else.', [P2])
+        ;   person(_,_,P1,_,_,G1), person(_,_,P2,_,_,G2), G1 == G2 ->
+            Msg = 'Error: Spouses must be of different genders.'
+        ;   forbidden_marriage_relation(P1,P2,Rel) ->
+            format(atom(Msg), 'INVALID MARRIAGE: The relationship is ~w.', [Rel])
+        )
+    ->  % Eğer yukarıdaki kontrollerden BİRİ bile başarılı olursa (yani bir HATA VARSA):
+        rollback(Flag1, P1), % Yeni eklenen kişileri geri al
+        rollback(Flag2, P2),
+        writeln(Msg)         % Hata mesajını yazdır
+    ;   % Eğer HİÇBİR hata bulunamazsa, bu ELSE bloğu çalışır:
+        perform_actual_marriage(P1, P2)
+    ).
 
-    rollback(Flag1,P1),
-    rollback(Flag2,P2),
-    writeln(Msg).
+% Bu kural, sadece evliliği gerçekleştirir ve başarı mesajı verir.
+perform_actual_marriage(P1, P2) :-
+    assertz(married(P1, P2)),
+    assertz(married(P2, P1)),
+    writeln('Marriage successful!').
 
 underage(Name, Age) :-
     person(_,_,Name, Birth, Death, _),
