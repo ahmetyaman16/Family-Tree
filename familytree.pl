@@ -633,7 +633,7 @@ print_num_of_child(Name) :-
 
 print_age(Name):-
     person(_,_,Name,Birth,Death,_),
-    (Death=='none'->
+    (Death== none ->
         current(CurrentYear),
         Age is CurrentYear - Birth,
         format("Age: ~w~n", [Age])
